@@ -1,0 +1,9 @@
+\section{Discussion}
+\label{sec:discussion}
+
+\paragraph{Signal granularity and router failure.}
+The router diagnostic (\S\ref{sec:router-diagnostic}) reveals a structural mismatch: death avoidance is a task-type-level binary property, but step-level features correlate weakly because death risk depends on multi-step trajectories. Six router variants converge on near-chance accuracy ($56$--$59\%$). Two a priori unpredictable results: $10{\times}$ scaling to 72B fails to eliminate death dominance (DAF${}=92.4\%$, 5 internal-preferred vs.\ 9 at 7B), and Reflexion yields DAF${}>100\%$; cross-model DR stability ($36$--$43\%$) confirms death vulnerability is a task-environment property.
+
+\paragraph{Oracle degeneracy and practical implications.}
+Always-deterministic matches 96.3\% of oracle decisions (\S\ref{sec:baselines}), capping any router's marginal value at 2.89 points. $\Delta_{\text{nd}} = 2.84$ (9.6\% of total gap) shows the advantage concentrates almost entirely in death episodes; ALFWorld (DAF${=}0\%$) confirms the framework diagnoses qualitatively different mechanisms. A ${\sim}$50-episode pilot suffices for build-vs-buy decisions (Appendix~\ref{app:decision-framework}); action-space filtering reduces death rate by 19~pp (Appendix~\ref{app:grounding-ablation}). The decomposition applies when three conditions hold: binary catastrophic failures, asymmetric failure rates, and $P \gg \Delta_\text{nd}$---ScienceWorld satisfies all three; MATH and ALFWorld lack the first.
+

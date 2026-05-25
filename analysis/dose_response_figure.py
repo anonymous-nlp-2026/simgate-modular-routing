@@ -19,7 +19,7 @@ retry_ci_lo = [wilson_ci(retry_deaths[k], 200)[0] for k in N]
 retry_ci_hi = [wilson_ci(retry_deaths[k], 200)[1] for k in N]
 
 # Reflexion: final_dr per independent condition
-# N=1,2 from westb-13313; N=3,4,5 from westd-18266
+# N=1,2 from server-A; N=3,4,5 from server-B
 refl_deaths = {1: 95, 2: 80, 3: 68, 4: 73, 5: 70}
 refl_dr = [d / 200 * 100 for d in [refl_deaths[k] for k in N]]
 refl_ci_lo = [wilson_ci(refl_deaths[k], 200)[0] for k in N]

@@ -3,12 +3,12 @@
 
 \begin{figure}[t]
 \centering
-\includegraphics[width=\columnwidth]{figures/pipeline_overview.pdf}
-\caption{Counterfactual episode collection and analysis pipeline. Each task instance is run under both pure strategies independently, producing episode-level labels via Algorithm~\ref{alg:labeling}.}
-\label{fig:pipeline}
+\includegraphics[width=\columnwidth]{figures/label_decomposition.pdf}
+\caption{Episode-level label decomposition ($N{=}245$). Of 95 non-tie labels, 75 (78.9\%) arise from death asymmetry: 54 where death is the sole discriminator and 21 with co-occurring score differences. All 20 non-death labels originate from a single task type (\texttt{find-non-living-thing}).}
+\label{fig:label-decomposition}
 \end{figure}
 
-Our diagnostic framework quantifies what drives routing signal in interactive environments through two components: (i)~episode-level counterfactual labeling that generates routing preferences from paired pure-strategy outcomes (\S\ref{sec:collection}--\ref{sec:labeling}); and (ii)~the Death Avoidance Factor (DAF), which decomposes the routing score gap into death-avoidance and non-death components (\S\ref{sec:daf}). A supplementary Signal Concentration Index (SCI; Appendix~\ref{app:sci}) measures whether signal is concentrated in a few task types. Episode-level bootstrap resampling provides 95\% confidence intervals for all metrics.
+Our diagnostic framework (Figure~\ref{fig:pipeline}) quantifies what drives routing signal in interactive environments through two components: (i)~episode-level counterfactual labeling that generates routing preferences from paired pure-strategy outcomes (\S\ref{sec:collection}--\ref{sec:labeling}); and (ii)~the Death Avoidance Factor (DAF), which decomposes the routing score gap into death-avoidance and non-death components (\S\ref{sec:daf}). A supplementary Signal Concentration Index (SCI; Appendix~\ref{app:sci}) measures whether signal is concentrated in a few task types. Episode-level bootstrap resampling provides 95\% confidence intervals for all metrics.
 
 \subsection{Problem Setup}
 \label{sec:problem-setup}
@@ -38,13 +38,61 @@ We use Qwen2.5-7B-Instruct~\citep{qwen25-2024} (vLLM v0.21.0) on ScienceWorld \c
 \subsection{Episode-Level Labeling}
 \label{sec:labeling}
 
+\begin{algorithm}[t]
+\caption{Episode-Level Counterfactual Labeling}
+\label{alg:labeling}
+\begin{algorithmic}[1]
+\REQUIRE Task instance $t$, computation modes $\mathcal{M} = \{{\tt int}, {\tt det}\}$
+\ENSURE Label $\ell \in \{{\tt det\text{-}pref}, {\tt int\text{-}pref}, {\tt no\text{-}pref}\}$
+\FOR{each $m \in \mathcal{M}$}
+    \STATE Run episode $\tau_m$ with pure-strategy $m$
+    \STATE Record score $s_m$ and death indicator $d_m$
+\ENDFOR
+\IF{$d_{\tt int} = 1$ \AND $d_{\tt det} = 0$}
+    \STATE $\ell \leftarrow {\tt det\text{-}pref}$ \COMMENT{death asymmetry}
+\ELSIF{$d_{\tt int} = 0$ \AND $d_{\tt det} = 1$}
+    \STATE $\ell \leftarrow {\tt int\text{-}pref}$ \COMMENT{death asymmetry}
+\ELSIF{$d_{\tt int} = d_{\tt det} = 1$}
+    \STATE $\ell \leftarrow {\tt no\text{-}pref}$ \COMMENT{both dead}
+\ELSIF{$s_{\tt det} > s_{\tt int}$}
+    \STATE $\ell \leftarrow {\tt det\text{-}pref}$ \COMMENT{score comparison}
+\ELSIF{$s_{\tt int} > s_{\tt det}$}
+    \STATE $\ell \leftarrow {\tt int\text{-}pref}$ \COMMENT{score comparison}
+\ELSE
+    \STATE $\ell \leftarrow {\tt no\text{-}pref}$ \COMMENT{tied alive}
+\ENDIF
+\RETURN $\ell$
+\end{algorithmic}
+\end{algorithm}
+
 We define a labeling function $L$ that maps a counterfactual pair to a routing preference:
 \begin{multline}
     L\!\bigl(\tau_{\tt int}^{(t)}, \tau_{\tt det}^{(t)}\bigr) \;\rightarrow \\
     \ell \in \{{\tt det\text{-}pref},\; {\tt int\text{-}pref},\; {\tt no\text{-}pref}\}
 \end{multline}
 
-The labeling function is \emph{death-aware}: it prioritizes survival over score, then compares scores among same-status episodes (Algorithm~\ref{alg:labeling}; Appendix~\ref{app:labeling}). Both-dead episodes receive \texttt{no\_preference} because ScienceWorld's fixed $-100$ penalty makes death timing uninformative. ScienceWorld scores are integer-valued, so we use exact (in)equality with no threshold. Figure~\ref{fig:pipeline} illustrates the overall pipeline; label distributions are reported in \S\ref{sec:death-decomp}.
+\begin{table}[t]
+\centering
+\small
+\begin{tabular}{@{}lrr@{}}
+\toprule
+Condition & Death\% & $N$ \\
+\midrule
+Single-trial baseline & 42.9 & 245 \\
+Reflexion ($3{\times}$) & 31.4 & 220 \\
+Qwen2.5-72B ($10{\times}$) & 30.6 & 255 \\
+Deterministic baseline & 16.3 & 245 \\
+\midrule
+\multicolumn{3}{@{}l}{\textit{10 death-prone tasks only:}} \\
+Death-prone baseline & 48.0 & 200 \\
+Retry ($5{\times}$) & 43.5 & 200 \\
+\bottomrule
+\end{tabular}
+\caption{Internal-strategy death rates under improvement methods. Top: all 11 tasks. Bottom: 10 death-prone tasks (\texttt{find-non-living-thing} excluded). No intervention approaches deterministic-level safety.}
+\label{tab:agent-improvement}
+\end{table}
+
+The labeling function is \emph{death-aware}: it prioritizes survival over score, then compares scores among same-status episodes (Algorithm~\ref{alg:labeling}). Both-dead episodes receive \texttt{no\_preference} because ScienceWorld's fixed $-100$ penalty makes death timing uninformative. ScienceWorld scores are integer-valued, so we use exact (in)equality with no threshold. Label distributions are reported in \S\ref{sec:death-decomp}.
 
 \subsection{Death Avoidance Factor}
 \label{sec:daf}
@@ -61,15 +109,27 @@ We define the Death Avoidance Factor (DAF) as the fraction of the full score gap
 \end{equation}%
 \footnote{When $\Delta_{\text{nd}} < 0$ (deterministic strategy scores lower than internal on non-death episodes), DAF exceeds 1; death avoidance then overcompensates for a non-death disadvantage.}
 
-Since DAF $= \delta P / (\delta P + \Delta_{\text{nd}})$, it increases monotonically with $P$, a mathematical consequence rather than an empirical finding. For context: DAF $= 50.4\%$ at $P{=}10$, $82.6\%$ at $P{=}50$, and $90.4\%$ at $P{=}100$ (full curve in Appendix~\ref{app:penalty}). We treat the label fraction (78.9\%) as the primary, penalty-invariant diagnostic and DAF as a supplementary, environment-specific measure. In ScienceWorld, $P$ affects only post-hoc score calculation; the agent's policy (ReAct prompting) does not include $P$ in its observation, so death rates and $\Delta_{\text{nd}}$ are $P$-invariant by design~\citep{ng1999policy} (Appendix~\ref{app:penalty}).
+DAF increases monotonically with $P$ (Table~\ref{tab:penalty-sensitivity}); we treat the label fraction (78.9\%) as the primary, penalty-invariant diagnostic. In ScienceWorld, $P$ affects only post-hoc score calculation; death rates and $\Delta_{\text{nd}}$ are $P$-invariant by design~\citep{ng1999policy}. Uncertainty is quantified via episode-level bootstrap ($B{=}10{,}000$, percentile 95\% CIs).
 
-\paragraph{Relationship between DAF and label fraction.}
-DAF (90.4\%) exceeds the label fraction (78.9\%) because death episodes carry disproportionately large score gaps ($P{=}100 \gg$ typical non-death $\Delta{\approx}29$), amplifying their weight in score-weighted aggregation. The label fraction, invariant to penalty magnitude, serves as the primary finding; DAF reflects the score-space reality under ScienceWorld's reward structure.
-
-\paragraph{Statistical inference.}
-We quantify uncertainty via episode-level bootstrap resampling ($B = 10{,}000$). Each resample draws $N = 245$ episodes with replacement, recomputes all metrics, and derives percentile-based 95\% CIs. We resample at the episode level (not the step level) because the episode is the unit of counterfactual comparison. Penalty sensitivity analysis across hypothetical $P$ values is in Appendix~\ref{app:penalty}.
-
-We also measure whether death-avoidance signal is concentrated in a few task types via a Signal Concentration Index (SCI $\in [0, 1]$; Appendix~\ref{app:sci}), reported in \S\ref{sec:death-decomp}.
-
-\paragraph{Scope of episode-level analysis.}
-At step level, 97.4\% of oracle comparisons yield ties (\S\ref{sec:collection}); of 2{,}040 training steps, only 0.3\% exhibit strict directional conflict with episode labels, with 60.3\% pre-event neutral (neither strategy advantaged). Episode labels thus apply correct direction to uninformative steps---a granularity mismatch, not label error---explaining why step-level router training approaches chance performance (\S\ref{sec:router-diagnostic}).
+\begin{table}[t]
+\centering
+\scriptsize
+\setlength{\tabcolsep}{4pt}
+\begin{tabular}{@{}rrr@{}}
+\toprule
+$P$ & DAF($P$) & 95\% CI \\
+\midrule
+0 & 7.4\% & [$-39.4$, $82.5$] \\
+1 & 14.8\% & [$-28.6$, $89.6$] \\
+5 & 35.4\% & [$-1.8$, $92.7$] \\
+10 & 50.4\% & [$18.5$, $93.3$] \\
+25 & 70.7\% & [$48.0$, $96.3$] \\
+50 & 82.6\% & [$67.2$, $98.2$] \\
+100\textsuperscript{*} & 90.4\% & [$81.3$, $99.1$] \\
+200 & 94.9\% & [$89.9$, $99.5$] \\
+500 & 97.9\% & [$95.7$, $99.8$] \\
+\bottomrule
+\end{tabular}
+\caption{Sensitivity of DAF to death penalty magnitude $P$. $\Delta_{\text{nd}} = 2.84$ is invariant; as $P$ increases, $\Delta_{\text{full}} \approx \delta P + \Delta_{\text{nd}}$ grows, mechanically increasing DAF. \textsuperscript{*}Default ScienceWorld setting. Bootstrap 95\% CIs ($B{=}10{,}000$).}
+\label{tab:penalty-sensitivity}
+\end{table}

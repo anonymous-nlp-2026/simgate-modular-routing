@@ -16,7 +16,7 @@ set -euo pipefail
 # conda activate (adjust path for your environment)
 cd .
 
-# AutoDL network acceleration
+# Network acceleration
 # source network proxy if needed
 export HF_HOME=~/.cache/huggingface
 export HF_HUB_DISABLE_XET=1

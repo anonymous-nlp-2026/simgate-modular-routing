@@ -3,8 +3,7 @@
 Data: per_task_dose_response_data.json (10 death-prone tasks, N=1..5).
 72B horizontal line updated to 30.6% (78/255, 11-task aggregate from backbone-scaling-70b).
 """
-import matplotlib
-matplotlib.use('Agg')
+import paper_style; paper_style.apply_style()
 import matplotlib.pyplot as plt
 import matplotlib.ticker as ticker
 import numpy as np
@@ -53,36 +52,29 @@ def compute_stats(data_dict):
 retry_m, retry_lo, retry_hi = compute_stats(RETRY)
 reflex_m, reflex_lo, reflex_hi = compute_stats(REFLEXION)
 
-plt.rcParams.update({
-    'font.family': 'serif',
-    'font.size': 9,
-    'axes.labelsize': 10,
-    'xtick.labelsize': 9,
-    'ytick.labelsize': 9,
-    'lines.linewidth': 1.8,
-    'lines.markersize': 7,
-    'axes.linewidth': 0.8,
-    'xtick.major.width': 0.8,
-    'ytick.major.width': 0.8,
-    'xtick.direction': 'in',
-    'ytick.direction': 'in',
-    'pdf.fonttype': 42,
-    'ps.fonttype': 42,
-})
+fig, ax = plt.subplots(figsize=(3.25, 2.5))
 
-fig, ax = plt.subplots(figsize=(3.5, 2.8))
+ax.fill_between(NS, retry_lo, retry_hi, color=paper_style.C_INTERNAL,
+                alpha=paper_style.CI_ALPHA, zorder=1, edgecolor='none')
+ax.plot(NS, retry_m, color=paper_style.C_INTERNAL, marker='o', markersize=5,
+        markeredgecolor='white', markeredgewidth=paper_style.MARKER_EDGE_WIDTH,
+        alpha=0.92, label='Retry', zorder=3,
+        path_effects=paper_style.marker_shadow())
 
-ax.fill_between(NS, retry_lo, retry_hi, color='#2166AC', alpha=0.12, zorder=1)
-ax.plot(NS, retry_m, color='#2166AC', marker='o', label='Retry', zorder=3)
+ax.fill_between(NS, reflex_lo, reflex_hi, color=paper_style.C_DETERMINISTIC,
+                alpha=paper_style.CI_ALPHA, zorder=1, edgecolor='none')
+ax.plot(NS, reflex_m, color=paper_style.C_DETERMINISTIC, marker='s', markersize=5,
+        markeredgecolor='white', markeredgewidth=paper_style.MARKER_EDGE_WIDTH,
+        alpha=0.92, label='Reflexion', zorder=3,
+        path_effects=paper_style.marker_shadow())
 
-ax.fill_between(NS, reflex_lo, reflex_hi, color='#B2182B', alpha=0.12, zorder=1)
-ax.plot(NS, reflex_m, color='#B2182B', marker='s', label='Reflexion', zorder=3)
+ax.axhline(y=30.6, color=paper_style.C_REGRESSION,
+           linestyle=(0, (5, 2, 1, 2)), linewidth=0.9, alpha=0.6, zorder=2)
+ax.text(5.05, 30.6, '72B (30.6%)', va='center', ha='left', fontsize=7, color=paper_style.C_REGRESSION)
 
-ax.axhline(y=30.6, color='#666666', linestyle='--', linewidth=1.2, zorder=2)
-ax.text(5.05, 30.6, '72B (30.6%)', va='center', ha='left', fontsize=7.5, color='#666666')
-
-ax.axhline(y=16.3, color='#888888', linestyle=':', linewidth=1.0, zorder=2)
-ax.text(5.05, 16.3, 'Deterministic (16.3%)', va='center', ha='left', fontsize=7.5, color='#888888')
+ax.axhline(y=16.3, color=paper_style.C_NEUTRAL,
+           linestyle=(0, (2, 2)), linewidth=0.8, alpha=0.6, zorder=2)
+ax.text(5.05, 16.3, 'Deterministic (16.3%)', va='center', ha='left', fontsize=7, color=paper_style.C_NEUTRAL)
 
 ax.set_xlabel('Number of Trials (N)')
 ax.set_ylabel('Death Rate (%)')
@@ -91,13 +83,16 @@ ax.set_ylim(10, 60)
 ax.xaxis.set_major_locator(ticker.FixedLocator([1, 2, 3, 4, 5]))
 ax.yaxis.set_major_locator(ticker.MultipleLocator(10))
 
-ax.grid(True, linestyle='--', linewidth=0.4, color='#CCCCCC', alpha=0.7, zorder=0)
+paper_style.add_y_grid(ax)
 
-ax.legend(loc='upper right', frameon=True, edgecolor='#CCCCCC',
-          fancybox=False, framealpha=0.9)
+leg = ax.legend(loc='upper right', frameon=True)
+paper_style.style_legend(leg)
 
 fig.tight_layout(pad=0.4)
-out_path = os.path.join(os.path.dirname(__file__), 'dose_response.pdf')
-fig.savefig(out_path, dpi=300, bbox_inches='tight')
+out_dir = os.path.dirname(os.path.abspath(__file__))
+for ext in ('pdf', 'png'):
+    path = os.path.join(out_dir, f'dose_response.{ext}')
+    fig.savefig(path, format=ext if ext == 'png' else None,
+                dpi=300, bbox_inches='tight', pad_inches=0.08)
 plt.close()
-print(f"Saved: {out_path} ({os.path.getsize(out_path)} bytes)")
+print(f"Saved: {os.path.join(out_dir, 'dose_response.pdf')} ({os.path.getsize(os.path.join(out_dir, 'dose_response.pdf'))} bytes)")

@@ -2,7 +2,7 @@
 
 Code for the paper *"Death Avoidance as the Dominant Routing Signal: A Counterfactual Analysis on ScienceWorld"*.
 
-This framework investigates **where routing signal comes from** when LLM agents choose between deterministic (tool-use) and internal (generative) reasoning strategies. Using episode-level counterfactual evaluation in ScienceWorld, we decompose the routing signal and find that **78.9% of non-tie routing labels arise from death asymmetry** — a finding replicated across three architecturally distinct 7–9B model families (Qwen2.5-7B, Llama-3.1-8B, Gemma-2-9B). Cross-environment probes on ALFWorld and MATH diagnose qualitatively different routing mechanisms.
+This framework investigates **where routing signal comes from** when LLM agents choose between deterministic (tool-use) and internal (generative) reasoning strategies. Using episode-level counterfactual evaluation in ScienceWorld, we decompose the routing signal and find that **78.9% of non-tie routing labels arise from death asymmetry** — a finding replicated across three model families (7B–70B). At 70B scale, death avoidance accounts for the entire performance gap. A trivial always-deterministic policy matches 96.3% of oracle decisions, leaving negligible room for learned routing. Boundary probes on ALFWorld and MATH show the framework distinguishes qualitatively different signal sources, including environments where no routing signal exists.
 
 ## Requirements
 

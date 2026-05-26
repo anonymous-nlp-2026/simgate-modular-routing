@@ -7,6 +7,7 @@
 \usepackage[T1]{fontenc}
 \usepackage[utf8]{inputenc}
 \usepackage{microtype}
+% \usepackage{inconsolata}  % optional per ACL template; not available in this TeX installation
 \usepackage{graphicx}
 \graphicspath{{figures/}}
 \usepackage{booktabs}
@@ -14,10 +15,13 @@
 \usepackage{amssymb}
 \usepackage{algorithm}
 \usepackage{algorithmic}
+\usepackage{caption}
 \usepackage{tcolorbox}
 \tcbuselibrary{listings,breakable}
 
-\hypersetup{pdfauthor={},pdftitle={}}
+\setlength{\dbltextfloatsep}{8pt plus 2pt minus 2pt}
+\setlength{\floatsep}{6pt plus 2pt minus 2pt}
+\setlength{\textfloatsep}{8pt plus 2pt minus 2pt}
 
 \title{Death Avoidance as the Dominant Routing Signal:\\A Counterfactual Analysis on ScienceWorld}
 
@@ -35,19 +39,7 @@
 \input{conclusion}
 
 \section*{Limitations}
-
-\paragraph{Environmental scope.}
-Our primary analysis uses ScienceWorld (11 of 30 task types) with Qwen2.5-7B-Instruct. Cross-model replication (three 7--9B families, two 70B-class models) and cross-environment probes (MATH, ALFWorld) support the framework's methodological generality, but quantitative results (DAF $= 90.4\%$, label fractions) are environment-specific. The $-100$ death penalty amplifies DAF; softer penalties yield lower values (Appendix~\ref{app:penalty}). Validation beyond 70B and to frontier models with substantially lower failure rates remains future work.
-
-\paragraph{Methodological constraints.}
-Our internal baseline uses single-pass ReAct~\citep{react-2023}; more aggressive self-correction (e.g., Tree-of-Thought~\citep{tot-2023}) may further reduce death rates. Episode-level labels assign a single routing preference to entire episodes, introducing granularity mismatch for individual steps---though only 0.3\% of steps exhibit strict directional conflict with the episode label. Training on pure-strategy trajectories also introduces distribution shift at deployment~\citep{dagger-2011}.
-
-\paragraph{Statistical limitations.}
-With $K{=}11$ task-type clusters falling below the $K \geq 20$--$50$ threshold recommended by \citet{cameron-2008,webb-2023}, cluster bootstrap yields wider CIs ($[73.3\%, 100.0\%]$); readers should rely on the non-clustered episode-level CI ($[81.3\%, 99.1\%]$). Wild cluster bootstrap ($p < 0.001$; Appendix~\ref{app:wild-cluster}) and 100\% directional consistency across all 28 death-prone tasks mitigate this concern.
-
-\section*{Ethics Statement}
-
-This work uses ScienceWorld \citep{scienceworld-2022}, a publicly available text-based simulation environment, and does not involve human subjects or private data. All evaluation environments (ScienceWorld, ALFWorld, MATH) are released under permissive open-source licenses (Apache 2.0 / MIT). All models used (Qwen2.5 family, Llama-3.1-8B, Gemma-2-9B-it) are publicly available for research use. All language models are accessed via standard APIs or publicly released weights. Experiments were conducted on 2$\times$ NVIDIA RTX 5090 (32GB) and 4$\times$ NVIDIA RTX 6000 PRO (96GB), totaling approximately 200 GPU-hours, comprising ${\sim}$140 hours for episode collection (counterfactual inference across three 7--9B model families plus Qwen2.5-72B backbone scaling, Reflexion and retry baselines, and cross-environment validation on ALFWorld and MATH), ${\sim}$35 hours for router training (LoRA fine-tuning of Qwen3-0.6B/1.7B/4B across 4--8 seeds per scale, including augmentation and ablation variants), and ${\sim}$25 hours for evaluation and analysis. Code and data are available at \url{https://github.com/anonymous-nlp-2026/simgate-modular-routing}.
+Full quantitative validation (DAF, label fractions) is specific to ScienceWorld; MATH and ALFWorld serve as boundary probes, not comprehensive cross-environment validation. DAF depends on a fixed death penalty ($P{=}100$); environments with graded or stochastic failure severity would require extensions (Appendix~\ref{app:penalty}). The internal baseline uses single-pass ReAct~\citep{react-2023}; more aggressive self-correction (e.g., Tree-of-Thought) may further reduce death rates and alter the signal composition. With $K{=}11$ task-type clusters, cluster bootstrap yields wider CIs; wild cluster bootstrap ($p < 0.001$; Appendix~\ref{app:wild-cluster}) and 100\% directional consistency across all 28 death-prone tasks provide partial mitigation. Total compute was approximately 200 GPU-hours on consumer and workstation GPUs.
 
 \bibliography{references}
 
@@ -369,7 +361,28 @@ Decomposition metrics are stable under bootstrap resampling ($B{=}10{,}000$ resa
 \section{Penalty Sensitivity Analysis}
 \label{app:penalty}
 
-Table~\ref{tab:penalty-sensitivity} (main text, \S\ref{sec:daf}) reports DAF sensitivity across penalty magnitudes.
+\begin{table}[h]
+\centering
+\scriptsize
+\resizebox{\columnwidth}{!}{%
+\begin{tabular}{@{}rrr@{}}
+\toprule
+$P$ & DAF($P$) & 95\% CI \\
+\midrule
+0 & 7.4\% & [$-39.4$, $82.5$] \\
+1 & 14.8\% & [$-28.6$, $89.6$] \\
+5 & 35.4\% & [$-1.8$, $92.7$] \\
+10 & 50.4\% & [$18.5$, $93.3$] \\
+25 & 70.7\% & [$48.0$, $96.3$] \\
+50 & 82.6\% & [$67.2$, $98.2$] \\
+100\textsuperscript{*} & 90.4\% & [$81.3$, $99.1$] \\
+200 & 94.9\% & [$89.9$, $99.5$] \\
+500 & 97.9\% & [$95.7$, $99.8$] \\
+\bottomrule
+\end{tabular}}
+\caption{Sensitivity of DAF to death penalty magnitude $P$. $\Delta_{\text{nd}} = 2.84$ is invariant; as $P$ increases, $\Delta_{\text{full}} \approx \delta P + \Delta_{\text{nd}}$ grows, mechanically increasing DAF. \textsuperscript{*}Default ScienceWorld setting. Bootstrap 95\% CIs ($B{=}10{,}000$).}
+\label{tab:penalty-sensitivity}
+\end{table}
 
 The non-death score gap $\Delta_{\text{nd}} = 2.84$ is invariant across penalty levels; it depends only on surviving-episode performance, not on $P$. As $P$ increases, $\Delta_{\text{full}}$ grows ($16.33$ at $P{=}50$, $29.60$ at $P{=}100$, $56.13$ at $P{=}200$) while $\Delta_{\text{nd}}$ remains fixed, mechanically increasing DAF.
 
@@ -507,14 +520,7 @@ Figure~\ref{fig:death-action-dist} shows the action distribution in death versus
 \label{fig:death-action-dist}
 \end{figure}
 
-% Figure moved to main text (\S\ref{sec:death-decomp})
-
-\begin{figure}[h]
-\centering
-\includegraphics[width=\columnwidth]{figures/death_action_comparison.pdf}
-\caption{Non-\texttt{connect} action distribution comparison between internal (left) and deterministic (right) strategies. Within death episodes, both strategies exhibit comparable \texttt{focus on} rates (${\sim}5\%$); the internal strategy's higher death count (105 vs.\ 40) reflects more frequent entry into catastrophic states, not different action selection within those states.}
-\label{fig:death-comparison}
-\end{figure}
+% Figure~\ref{fig:death-comparison} moved to main text (\S2)
 
 \section{Grounding Ablation}
 \label{app:grounding-ablation}
@@ -654,7 +660,7 @@ power-component & agent-floor & 20 & 50\% & 15\% & +35\,pp & 7/0/13 \\
 \label{tab:extended-val}
 \end{table}
 
-Notably, the excluded-task aggregate DAF (0.991) exceeds the included-task DAF (0.904; Table~\ref{tab:per-task}), indicating that excluded tasks are \emph{more} death-dominated than included tasks---the opposite of a cherry-picking bias.
+Notably, the excluded-task aggregate DAF (0.991) exceeds the included-task DAF (0.904; Table~\ref{tab:per-task}), indicating that excluded tasks are \emph{more} death-dominated than included tasks, the opposite of a cherry-picking bias.
 
 \section{Agent Prompt Templates}
 \label{app:prompt-templates}
@@ -770,12 +776,12 @@ We illustrate the framework's ability to decompose non-death routing signal usin
 In Episode~3 (det: 67, int: 0), the internal strategy issues nonsensical \texttt{connect} actions for 18 consecutive steps (e.g., ``connect air to outside,'' ``connect axe to door to foundry'') without ever identifying a target object; the deterministic strategy correctly focuses on ``orange'' (+58) and opens the kitchen door (+9). In Episode~17 (det: 58, int: 50), both strategies find a valid non-living thing, but the deterministic strategy selects a higher-scoring object (orange, 58\,pts) versus the internal strategy's choice (fountain, 50\,pts), illustrating that object selection quality creates routing signal even when both strategies succeed.
 
 \paragraph{Internal-preferred: semantic reasoning advantage.}
-In Episode~12 (int: 67, det: 58), the task specifies ``move it to the red box in the living room.'' The deterministic strategy focuses on the red box itself---the destination container, not a separate non-living thing---scoring 58\,pts. The internal strategy correctly distinguishes target from container, choosing ``orange'' (67\,pts). This semantic error demonstrates that deterministic pattern-matching can miss task-structure subtleties that internal reasoning captures.
+In Episode~12 (int: 67, det: 58), the task specifies ``move it to the red box in the living room.'' The deterministic strategy focuses on the red box itself, the destination container, not a separate non-living thing, scoring 58\,pts. The internal strategy correctly distinguishes target from container, choosing ``orange'' (67\,pts). This semantic error demonstrates that deterministic pattern-matching can miss task-structure subtleties that internal reasoning captures.
 
-These cases confirm two properties: (1)~the framework captures non-death routing signal when it exists, and (2)~signal flows in both directions---neither strategy uniformly dominates in death-free tasks.
+These cases confirm two properties: (1)~the framework captures non-death routing signal when it exists, and (2)~signal flows in both directions: neither strategy uniformly dominates in death-free tasks.
 
 \paragraph{Systematic analysis of non-death labels.}
-All 20 non-death non-tie labels in the primary Qwen2.5-7B analysis originate from \texttt{find-non-living-thing}---the sole death-free task type. In every other task type, non-tie episodes involve at least one strategy dying. We classify the 20 episodes into three error categories:
+All 20 non-death non-tie labels in the primary Qwen2.5-7B analysis originate from \texttt{find-non-living-thing}, the sole death-free task type. In every other task type, non-tie episodes involve at least one strategy dying. We classify the 20 episodes into three error categories:
 
 \begin{table}[h]
 \centering
@@ -793,16 +799,9 @@ Action selection error & 2 & 1 & 3 \\
 \label{tab:non-death-taxonomy}
 \end{table}
 
-\noindent Hallucination-induced errors dominate (50\%), driven by a recurring ``eat before focus'' pattern: the internal strategy consumes the target object (destroying it) before attempting the scoring action (\texttt{focus on}), indicating an incorrect state model that equates eating with task completion (11 of 20 episodes). Object selection quality accounts for 35\%---typically the deterministic strategy selecting ``orange'' (58\,pts) while the internal strategy settles for lower-value objects (``fountain'' or ``picture,'' 50\,pts). The error categories are bidirectional: 2 of 10 hallucination episodes and 1 of 3 action selection episodes are internal-preferred, confirming the framework detects failures in both strategies. Score gaps reflect category severity: hallucination errors produce large gaps ($17$--$67$\,pts, one strategy scores zero) while object selection differences produce small gaps ($8$--$9$\,pts, both strategies functional).
+\noindent Hallucination-induced errors dominate (50\%), driven by a recurring ``eat before focus'' pattern: the internal strategy consumes the target object (destroying it) before attempting the scoring action (\texttt{focus on}), indicating an incorrect state model that equates eating with task completion (11 of 20 episodes). Object selection quality accounts for 35\%: typically the deterministic strategy selecting ``orange'' (58\,pts) while the internal strategy settles for lower-value objects (``fountain'' or ``picture,'' 50\,pts). The error categories are bidirectional: 2 of 10 hallucination episodes and 1 of 3 action selection episodes are internal-preferred, confirming the framework detects failures in both strategies. Score gaps reflect category severity: hallucination errors produce large gaps ($17$--$67$\,pts, one strategy scores zero) while object selection differences produce small gaps ($8$--$9$\,pts, both strategies functional).
 
-\section{Use of AI Assistants}
-\label{app:ai-assistants}
-
-We used Claude (Anthropic) as an AI coding and writing assistant throughout this work. Specifically:
-\begin{itemize}
-    \item \textbf{Code:} drafting experiment scripts, data-processing pipelines, and analysis utilities; debugging and refactoring.
-    \item \textbf{Writing:} drafting and revising paper sections, polishing prose, and reformatting \LaTeX{}.
-    \item \textbf{Literature:} summarizing related papers to inform the related-work section.
-\end{itemize}
+\section{Use of AI Assistance}
+We used Claude for coding, code drafting, debugging, and language polishing.
 
 \end{document}

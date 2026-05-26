@@ -1,24 +1,17 @@
 \section{Method}
 \label{sec:method}
 
-\begin{figure}[t]
-\centering
-\includegraphics[width=\columnwidth]{figures/label_decomposition.pdf}
-\caption{Episode-level label decomposition ($N{=}245$). Of 95 non-tie labels, 75 (78.9\%) arise from death asymmetry: 54 where death is the sole discriminator and 21 with co-occurring score differences. All 20 non-death labels originate from a single task type (\texttt{find-non-living-thing}).}
-\label{fig:label-decomposition}
-\end{figure}
-
 Our diagnostic framework (Figure~\ref{fig:pipeline}) quantifies what drives routing signal in interactive environments through two components: (i)~episode-level counterfactual labeling that generates routing preferences from paired pure-strategy outcomes (\S\ref{sec:collection}--\ref{sec:labeling}); and (ii)~the Death Avoidance Factor (DAF), which decomposes the routing score gap into death-avoidance and non-death components (\S\ref{sec:daf}). A supplementary Signal Concentration Index (SCI; Appendix~\ref{app:sci}) measures whether signal is concentrated in a few task types. Episode-level bootstrap resampling provides 95\% confidence intervals for all metrics.
 
 \subsection{Problem Setup}
 \label{sec:problem-setup}
 
-Consider an interactive environment with observation space $\mathcal{O}$ and action space $\mathcal{A}$. An agent policy $\pi: \mathcal{O}^* \rightarrow \mathcal{A}$ maps observation histories to actions. We define two computation modes $\mathcal{M} = \{{\tt int}, {\tt det}\}$: \textbf{internal} (${\tt int}$), where the agent predicts intermediate observations via chain-of-thought reasoning (ReAct~\citep{react-2023}), with prediction errors compounding across steps; and \textbf{deterministic} (${\tt det}$), a privileged-information strategy (an umbrella term: ground-truth simulator access in ScienceWorld, code interpreter in MATH, admissible-action enumeration in ALFWorld---see \S\ref{sec:cross-env} for environment-specific operationalizations) that eliminates observation uncertainty; these qualitative differences affect what routing signals the framework can detect. A \emph{routing policy} $\rho: \mathcal{O}^* \rightarrow \mathcal{M}$ selects which computation mode to use at each step; our analysis investigates what signal is available to learn $\rho$.
+Consider an interactive environment with observation space $\mathcal{O}$ and action space $\mathcal{A}$. An agent policy $\pi: \mathcal{O}^* \rightarrow \mathcal{A}$ maps observation histories to actions. We define two computation modes $\mathcal{M} = \{{\tt int}, {\tt det}\}$: \textbf{internal} (${\tt int}$), where the agent predicts intermediate observations via chain-of-thought reasoning (ReAct~\citep{react-2023}), with prediction errors compounding across steps; and \textbf{deterministic} (${\tt det}$), which uses the same LLM to generate candidate actions but evaluates them through privileged environment feedback (ground-truth simulator state in ScienceWorld, code interpreter in MATH, admissible-action enumeration in ALFWorld; see \S\ref{sec:cross-env} for environment-specific operationalizations). Crucially, the deterministic strategy does not provide optimal actions; it reduces observation uncertainty by grounding the LLM's choices in verified environment state rather than predicted state. These qualitative differences affect what routing signals the framework can detect. A \emph{routing policy} $\rho: \mathcal{O}^* \rightarrow \mathcal{M}$ selects which computation mode to use at each step; our analysis investigates what signal is available to learn $\rho$.
 
 \subsection{Counterfactual Episode Collection}
 \label{sec:collection}
 
-Per-step oracle labeling degenerates under sparse terminal rewards: on ScienceWorld \citep{scienceworld-2022}, 97.4\% of steps (5{,}935 of 6{,}094 across 11 prescreened task types) produce identical intermediate scores, yielding no per-step routing signal. Episode-level comparison---directly measuring terminal outcomes---is therefore the principled granularity for sparse-reward environments.
+Per-step oracle labeling degenerates under sparse terminal rewards: on ScienceWorld \citep{scienceworld-2022}, 97.4\% of steps (5{,}935 of 6{,}094 across 11 prescreened task types) produce identical intermediate scores, yielding no per-step routing signal. Episode-level comparison (directly measuring terminal outcomes) is therefore the principled granularity for sparse-reward environments.
 
 \paragraph{Pure-strategy trajectories.}
 For a task instance $t$ and computation mode $m \in \mathcal{M}$, a \emph{pure-strategy trajectory} is the complete episode obtained by applying mode $m$ at every step:
@@ -71,28 +64,7 @@ We define a labeling function $L$ that maps a counterfactual pair to a routing p
     \ell \in \{{\tt det\text{-}pref},\; {\tt int\text{-}pref},\; {\tt no\text{-}pref}\}
 \end{multline}
 
-\begin{table}[t]
-\centering
-\small
-\begin{tabular}{@{}lrr@{}}
-\toprule
-Condition & Death\% & $N$ \\
-\midrule
-Single-trial baseline & 42.9 & 245 \\
-Reflexion ($3{\times}$) & 31.4 & 220 \\
-Qwen2.5-72B ($10{\times}$) & 30.6 & 255 \\
-Deterministic baseline & 16.3 & 245 \\
-\midrule
-\multicolumn{3}{@{}l}{\textit{10 death-prone tasks only:}} \\
-Death-prone baseline & 48.0 & 200 \\
-Retry ($5{\times}$) & 43.5 & 200 \\
-\bottomrule
-\end{tabular}
-\caption{Internal-strategy death rates under improvement methods. Top: all 11 tasks. Bottom: 10 death-prone tasks (\texttt{find-non-living-thing} excluded). No intervention approaches deterministic-level safety.}
-\label{tab:agent-improvement}
-\end{table}
-
-The labeling function is \emph{death-aware}: it prioritizes survival over score, then compares scores among same-status episodes (Algorithm~\ref{alg:labeling}). Both-dead episodes receive \texttt{no\_preference} because ScienceWorld's fixed $-100$ penalty makes death timing uninformative. ScienceWorld scores are integer-valued, so we use exact (in)equality with no threshold. Label distributions are reported in \S\ref{sec:death-decomp}.
+The labeling function is \emph{death-aware}: it prioritizes survival over score, then compares scores among same-status episodes (Algorithm~\ref{alg:labeling}). Both-dead episodes receive \texttt{no\_preference} because ScienceWorld's fixed $-100$ penalty makes death timing uninformative. ScienceWorld scores are integer-valued, so we use exact (in)equality with no threshold. A quality audit confirming zero tie-breaking artifacts is in Appendix~\ref{app:labeling}. Label distributions are reported in \S\ref{sec:death-decomp}.
 
 \subsection{Death Avoidance Factor}
 \label{sec:daf}
@@ -109,27 +81,4 @@ We define the Death Avoidance Factor (DAF) as the fraction of the full score gap
 \end{equation}%
 \footnote{When $\Delta_{\text{nd}} < 0$ (deterministic strategy scores lower than internal on non-death episodes), DAF exceeds 1; death avoidance then overcompensates for a non-death disadvantage.}
 
-DAF increases monotonically with $P$ (Table~\ref{tab:penalty-sensitivity}); we treat the label fraction (78.9\%) as the primary, penalty-invariant diagnostic. In ScienceWorld, $P$ affects only post-hoc score calculation; death rates and $\Delta_{\text{nd}}$ are $P$-invariant by design~\citep{ng1999policy}. Uncertainty is quantified via episode-level bootstrap ($B{=}10{,}000$, percentile 95\% CIs).
-
-\begin{table}[t]
-\centering
-\scriptsize
-\setlength{\tabcolsep}{4pt}
-\begin{tabular}{@{}rrr@{}}
-\toprule
-$P$ & DAF($P$) & 95\% CI \\
-\midrule
-0 & 7.4\% & [$-39.4$, $82.5$] \\
-1 & 14.8\% & [$-28.6$, $89.6$] \\
-5 & 35.4\% & [$-1.8$, $92.7$] \\
-10 & 50.4\% & [$18.5$, $93.3$] \\
-25 & 70.7\% & [$48.0$, $96.3$] \\
-50 & 82.6\% & [$67.2$, $98.2$] \\
-100\textsuperscript{*} & 90.4\% & [$81.3$, $99.1$] \\
-200 & 94.9\% & [$89.9$, $99.5$] \\
-500 & 97.9\% & [$95.7$, $99.8$] \\
-\bottomrule
-\end{tabular}
-\caption{Sensitivity of DAF to death penalty magnitude $P$. $\Delta_{\text{nd}} = 2.84$ is invariant; as $P$ increases, $\Delta_{\text{full}} \approx \delta P + \Delta_{\text{nd}}$ grows, mechanically increasing DAF. \textsuperscript{*}Default ScienceWorld setting. Bootstrap 95\% CIs ($B{=}10{,}000$).}
-\label{tab:penalty-sensitivity}
-\end{table}
+DAF increases monotonically with $P$ (Table~\ref{tab:penalty-sensitivity}, Appendix~\ref{app:penalty}); we treat the label fraction (78.9\%) as the primary, penalty-invariant diagnostic. In ScienceWorld, $P$ affects only post-hoc score calculation; death rates and $\Delta_{\text{nd}}$ are $P$-invariant by design~\citep{ng1999policy}. Uncertainty is quantified via episode-level bootstrap ($B{=}10{,}000$, percentile 95\% CIs).
